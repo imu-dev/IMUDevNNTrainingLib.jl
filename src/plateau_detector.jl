@@ -33,7 +33,7 @@ number of ticks.
     """
     ϵ::Float64 = 1e-8
     """
-    Internal only. The current learning rate.
+    The current learning rate.
     """
     η::Float64
 end

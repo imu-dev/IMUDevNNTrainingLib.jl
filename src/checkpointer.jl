@@ -148,7 +148,9 @@ epoch.
 """
 function start!(cp::Checkpointer, model;
                 move_to_device=Flux.cpu,
-                fallback_optimizer=m -> Flux.setup(Flux.Adam(), m),
+                fallback_plateau_detector=PlateauDetector(; η=1e-3),
+                fallback_optimizer=m -> Flux.setup(Flux.Adam(fallback_plateau_detector.η),
+                                                   m),
                 continue_from=cp.continue_from)
     chkp, start_epoch = if continue_from in [:none, :start, :restart, :nothing]
         @info "Starting new checkpointing"
@@ -178,10 +180,12 @@ function start!(cp::Checkpointer, model;
 
     if isnothing(chkp)
         m = move_to_device(model)
-        return m, move_to_device(fallback_optimizer(m)), [], start_epoch
+        return m, move_to_device(fallback_optimizer(m)), [], start_epoch,
+               fallback_plateau_detector
     end
-    _, opt_state, log = load!(model, chkp)
-    return move_to_device(model), move_to_device(opt_state), log, start_epoch
+    _, opt_state, log, plateau_detector = load!(model, chkp)
+    return move_to_device(model), move_to_device(opt_state), log, start_epoch,
+           plateau_detector
 end
 
 """
@@ -196,16 +200,17 @@ function load!(model, checkpoint_path)
 
     opt_state = JLD2.load(checkpoint_path, "opt_state")
     log = JLD2.load(checkpoint_path, "log")
-    return model, opt_state, log
+    plateau_detector = JLD2.load(checkpoint_path, "plateau_detector")
+    return model, opt_state, log, plateau_detector
 end
 
 """
-    checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log)
+    checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, plateau_detector)
 
 Save the model, the optimizer state and the training log to a checkpoint file if
 the given epoch is a multiple of `cp.save_every`. Otherwise, do nothing.
 """
-function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log)
+function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, plateau_detector)
     if epoch % cp.save_every != 0
         return nothing
     end
@@ -214,7 +219,8 @@ function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log)
     jldsave(path_to_checkpoint(cp, epoch);
             model_state=Flux.state(Flux.cpu(model)),
             opt_state=Flux.cpu(opt_state),
-            log)
+            log,
+            plateau_detector)
     @info "Done"
     return nothing
 end
