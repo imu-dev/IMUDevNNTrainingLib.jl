@@ -14,6 +14,7 @@ function basic_info(loader::Flux.DataLoader)
             feature_dim=feature_dim(loader),
             target_dim=target_dim(loader),
             batch_size=digitsep(batch_size(loader); seperator="_"),
+            num_batches=digitsep(length(loader); seperator="_"),
             trajectory_length=digitsep(num_timepoints(loader.data); seperator="_"))
 end
 
@@ -24,5 +25,6 @@ function basic_info_as_string(loader::Flux.DataLoader, ::TemporalData)
     target dimension: $(i.target_dim)
     trajectory length: $(i.trajectory_length)
     batch size: $(i.batch_size)
+    number of batches: $(i.num_batches)
     number of samples: $(i.num_samples)"""
 end
