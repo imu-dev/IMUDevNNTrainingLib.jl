@@ -1,5 +1,7 @@
 module IMUDevNNTrainingLib
 
+using Reexport
+
 using Flux
 @reexport using IMUDevNNLib
 using JLD2
