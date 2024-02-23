@@ -63,3 +63,8 @@ function Flux.MLUtils.getobs(d::TemporalData, i)
     n_y = ndims(first(d.y))
     return [selectdim(x, n_x, i) for x in d.x], [selectdim(y, n_y, i) for y in d.y]
 end
+
+num_samples(td::TemporalData) = size(first(td.x))[end]
+num_timepoints(td::TemporalData) = length(td.x)
+state_dim(td::TemporalData) = size(first(td.x))[1:(end - 1)]
+obs_dim(td::TemporalData) = size(first(td.y))[1:(end - 1)]
