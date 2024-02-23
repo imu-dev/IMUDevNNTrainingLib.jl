@@ -1,6 +1,6 @@
 # IMUDevNNTrainingLib
 
-[![Build Status](https://github.com/mmider/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mmider/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/imu-dev/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/imu-dev/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 An opinionated toolbox for training Neural Networks with [Flux](https://github.com/FluxML/Flux.jl).
 
