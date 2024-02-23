@@ -1,4 +1,3 @@
-using Revise
 using IMUDevNNTrainingLib
 using Test
 
