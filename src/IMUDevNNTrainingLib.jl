@@ -1,6 +1,7 @@
 module IMUDevNNTrainingLib
 
 using Flux
+@reexport using IMUDevNNLib
 using JLD2
 
 include("temporal_data.jl")
