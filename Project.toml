@@ -1,9 +1,10 @@
 name = "IMUDevNNTrainingLib"
 uuid = "f8493c61-e13b-4f15-934e-c0b2dbef8231"
 authors = ["Marcin Mider <marcin.mider@gmail.com> and contributors"]
-version = "0.4.1"
+version = "0.5.0"
 
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 Humanize = "7ec9b9c5-1998-51e1-b7fc-fc3590c18259"
 IMUDevNNLib = "295d651b-8f3c-4826-af69-6cde381c7ec2"

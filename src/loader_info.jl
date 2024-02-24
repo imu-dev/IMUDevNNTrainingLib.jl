@@ -1,5 +1,5 @@
-num_samples(loader::Flux.DataLoader) = num_samples(loader, loader.data)
-num_samples(::Flux.DataLoader, data::TemporalData) = num_samples(data)
+IMUDevNNLib.num_samples(loader::Flux.DataLoader) = num_samples(loader, loader.data)
+IMUDevNNLib.num_samples(::Flux.DataLoader, data::TemporalData) = num_samples(data)
 
 feature_dim(loader::Flux.DataLoader) = feature_dim(loader, loader.data)
 feature_dim(::Flux.DataLoader, data::TemporalData) = prod(state_dim(data))
