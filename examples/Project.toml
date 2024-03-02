@@ -1,0 +1,4 @@
+[deps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+IMUDevNNTrainingLib = "f8493c61-e13b-4f15-934e-c0b2dbef8231"
+ParameterSchedulers = "d7d3b36b-41b8-4d0d-a2bf-768c6151755e"

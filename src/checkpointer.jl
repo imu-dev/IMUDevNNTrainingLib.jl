@@ -6,15 +6,19 @@
 
 A struct to manage checkpoints during training of neural networks.
 
+$(TYPEDFIELDS)
+
 # Examples
 
 ## Checkpointing during training
 ```julia
+# a function that updates the training log
+model = ...
 update_log!(...) = ...
 ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"),
                   continue_from=:last,
                   save_every=5)
-model, opt_state, log, start_epoch = start!(ch, model)
+model, opt_state, log, start_epoch, other = start!(ch, model)
 for epoch in start_epoch:100
     Flux.train!(model, data, opt_state)
     update_log!(log, model, data, epoch)
@@ -35,7 +39,7 @@ test(model, data)
     """Root directory where the checkpoints will be saved to"""
     dir::String = "."
     """
-    A default behaviour for resuming checkpointing. See `start!`(@ref) for
+    A default behaviour for resuming checkpointing. See [`start!`](@ref) for
     details.
     """
     continue_from::Union{Int,Symbol} = :last
@@ -61,7 +65,7 @@ end
 """
     list_existing_checkpoint_indices(cp::Checkpointer)
 
-List the indices of the existing checkpoints in the directory `cp.dir`.
+List the epoch indices of the existing checkpoints in the directory `cp.dir`.
 """
 function list_existing_checkpoint_indices(cp::Checkpointer)
     reg = r"^checkpoint=(\d+).jld2$"
@@ -76,7 +80,7 @@ end
 """
     index_of_last_checkpoint(cp::Checkpointer)
 
-Return the index of the last checkpoint in the directory `cp.dir`. Return
+Return the index of the most recent checkpoint in the directory `cp.dir`. Return
 `nothing` if no checkpoint exists.
 """
 function index_of_last_checkpoint(cp::Checkpointer)
@@ -88,8 +92,9 @@ end
 """
     index_of_last_checkpoint_prior_to(cp::Checkpointer, i::Int)
 
-Return the index of the last checkpoint in the directory `cp.dir` prior to the
-given index `i`. Return `nothing` if no checkpoint exists.
+Return the index of the most recent checkpoint in the directory `cp.dir` out of
+checkpoints that are prior to the given index `i`. Return `nothing` if no such
+checkpoint exists.
 """
 function index_of_last_checkpoint_prior_to(cp::Checkpointer, i)
     indices = list_existing_checkpoint_indices(cp)
@@ -101,8 +106,8 @@ end
 """
     last_checkpoint_next_epoch(cp::Checkpointer)
 
-Return the path to the last checkpoint in the directory `cp.dir` together with
-the index of the subsequent epoch. Return `nothing` if no checkpoint exists.
+Return the path to the most recent checkpoint in the directory `cp.dir` together
+with the index of the subsequent epoch. Return `nothing` if no checkpoint exists.
 """
 function last_checkpoint_next_epoch(cp::Checkpointer)
     i = index_of_last_checkpoint(cp)
@@ -133,7 +138,10 @@ function ith_checkpoint_next_epoch(cp::Checkpointer, i)
 end
 
 """
-    start!(cp::Checkpointer, model; move_to_device, fallback_optimizer, continue_from)
+    start!(cp::Checkpointer, model;
+           move_to_device=Flux.cpu,
+           fallback_optimizer=m -> Flux.setup(Flux.Adam(1e-3), m),
+           continue_from=cp.continue_from)
 
 Start the checkpointing process. `continue_from` can be one of the following:
 - `:none`, `:start`, `:restart`, `:nothing`: for starting from scratch;
@@ -143,14 +151,12 @@ Start the checkpointing process. `continue_from` can be one of the following:
 The `move_to_device` function is used to move the model to the desired device
 (e.g. CPU or GPU). The `fallback_optimizer` function is used to setup the
 optimizer if the checkpoint does not exist. The function returns the model,
-the optimizer state, the training log, and the index of the subsequent trainging
-epoch.
+the optimizer state, the training log, the index of the subsequent training
+epoch and the dictionary of other objects that were saved in the checkpoint.
 """
 function start!(cp::Checkpointer, model;
                 move_to_device=Flux.cpu,
-                fallback_plateau_detector=PlateauDetector(; η=1e-3),
-                fallback_optimizer=m -> Flux.setup(Flux.Adam(fallback_plateau_detector.η),
-                                                   m),
+                fallback_optimizer=m -> Flux.setup(Flux.Adam(1e-3), m),
                 continue_from=cp.continue_from)
     chkp, start_epoch = if continue_from in [:none, :start, :restart, :nothing]
         @info "Starting new checkpointing"
@@ -180,19 +186,17 @@ function start!(cp::Checkpointer, model;
 
     if isnothing(chkp)
         m = move_to_device(model)
-        return m, move_to_device(fallback_optimizer(m)), [], start_epoch,
-               fallback_plateau_detector
+        return m, move_to_device(fallback_optimizer(m)), [], start_epoch, Dict()
     end
-    _, opt_state, log, plateau_detector = load!(model, chkp)
-    return move_to_device(model), move_to_device(opt_state), log, start_epoch,
-           plateau_detector
+    model, opt_state, log, other = load!(model, chkp)
+    return move_to_device(model), move_to_device(opt_state), log, start_epoch, other
 end
 
 """
     load!(model, checkpoint_path)
 
-Load the model, the optimizer state and the training log from the checkpoint
-file.
+Load the model, the optimizer statem, the training log and the other variables
+from the checkpoint file.
 """
 function load!(model, checkpoint_path)
     model_state = JLD2.load(checkpoint_path, "model_state")
@@ -200,17 +204,17 @@ function load!(model, checkpoint_path)
 
     opt_state = JLD2.load(checkpoint_path, "opt_state")
     log = JLD2.load(checkpoint_path, "log")
-    plateau_detector = JLD2.load(checkpoint_path, "plateau_detector")
-    return model, opt_state, log, plateau_detector
+    other = JLD2.load(checkpoint_path, "other")
+    return model, opt_state, log, other
 end
 
 """
-    checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, plateau_detector)
+    checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, kwargs...)
 
 Save the model, the optimizer state and the training log to a checkpoint file if
 the given epoch is a multiple of `cp.save_every`. Otherwise, do nothing.
 """
-function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, plateau_detector)
+function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, kwargs...)
     if epoch % cp.save_every != 0
         return nothing
     end
@@ -220,7 +224,7 @@ function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, plateau
             model_state=Flux.state(Flux.cpu(model)),
             opt_state=Flux.cpu(opt_state),
             log,
-            plateau_detector)
+            other=Dict(kwargs))
     @info "Done"
     return nothing
 end
