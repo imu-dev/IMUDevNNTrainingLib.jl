@@ -12,7 +12,7 @@ const TLib = IMUDevNNTrainingLib
             @test TLib.list_existing_checkpoint_indices(chkp) == []
             @test TLib.isnothing(index_of_last_checkpoint(chkp))
             @test TLib.last_checkpoint_next_epoch(chkp) == (nothing, 1)
-            chkp_data, start_epoch = TLib.start(chkp, "dummy_model")
+            chkp_data, start_epoch = TLib.start(chkp)
             @test isnothing(chkp_data)
             @test start_epoch == 1
             return nothing
