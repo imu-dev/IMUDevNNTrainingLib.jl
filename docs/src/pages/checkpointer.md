@@ -1,10 +1,11 @@
 # Checkpointing
 
-`Flux` already provides some methods for checkpointing; however, because of its agnostic nature with respect to the data-saving backend, the naming conventions and the choice of objects that need saving, it calls for writing quite an extensive boilerplate code. `IMUDevNNTrainingLib` makes all those choices for the user and in return streamlines the checkpointing process. In particular, the following choices are made:
+`Lux` is agnostic with respect to the way the user checkpoints the trained models. In particular the data-saving backend, the naming conventions and the choice of objects that need saving are all left up to the user. Although great from the perspective of flexibility, it calls for writing quite an extensive boilerplate code. `IMUDevNNTrainingLib` makes all those choices for the user and in return streamlines the checkpointing process. In particular, the following choices are made:
 
 - [`JLD2`](https://github.com/JuliaIO/JLD2.jl) is used as a backend for saving the state of the trained Neural Net
 - A checkpoint comprises of saved:
-  - `model_state`: parameters of the trained Neural Network
+  - `model_parameters`: parameters of the trained Neural Network
+  - `model_states`: states (i.e. non-trainable parameters) of the trained Neural Network
   - `opt_state`: parameters of the optimizer
   - `log`: a training log (with loss functions)
   - `other`: a dictionary of any other parameters that the user wishes to save. For instance, `plateau_detector` may be saved here.
@@ -15,10 +16,10 @@ The main object is `Checkpointer`:
 Checkpointer
 ```
 
-The usual training workflow involves `start!`ing it (which will load the specified checkpoint) as well as `checkpoint`ing it on every epoch, which will save the model when appropriate:
+The usual training workflow involves `start`ing it (which will load the specified checkpoint) as well as `checkpoint`ing it on every epoch, which will save the model when appropriate:
 
 ```@docs
-start!
+start
 checkpoint
 ```
 
@@ -27,20 +28,23 @@ checkpoint
     ```julia
     model = ...
     ch = Checkpointer()
-    model, opt_state, log, start_epoch, other = start!(ch, model)
-    pd = other[:plateau_detector]
+    chkp_data, start_epoch = start(ch)
+    if isnothing(chkp_data)
+        do_custom_initialization()
+    end
+    pd = chkp_data.other[:plateau_detector]
     ```
     and if we'd like to start using a different schedule of learning rates we could adjust them with:
     ```julia
     new_schedule = ParameterSchedulers.Stateful(Exp(1e-3, 0.15))
-    Flux.adjust!(opt_state, pd, new_schedule)
+    Optimisers.adjust!(chkp_data.opt_state, pd, new_schedule)
     ```
     before we resume the training.
 
-For testing it is often enough to simply `load!` the model and skip all the other objects:
+For testing it is often enough to call `load_checkpoint` directly, instead of trying to establish the starting epoch as well:
 
 ```@docs
-IMUDevNNTrainingLib.load!
+load_checkpoint
 ```
 
 To pick the appropriate checkpoint one can make use of the following helper functions:
@@ -48,6 +52,7 @@ To pick the appropriate checkpoint one can make use of the following helper func
 ```@docs
 path_to_checkpoint
 index_of_last_checkpoint
+path_to_last_checkpoint
 IMUDevNNTrainingLib.index_of_last_checkpoint_prior_to
 ```
 
@@ -58,13 +63,7 @@ A typical example of loading for testing is given below:
 model = ...
 
 chkp = Checkpointer(; dir="saved_checkpoints")
-path = path_to_checkpoint(chkp, index_of_last_checkpoint(chkp))
-IMUDevNNTrainingLib.load!(model, path)
-
-# move to GPUs if needed
-if USE_GPUs
-    model = model |> gpu
-end
+chkp_data = load_checkpoint(model, path_to_last_checkpoint(chkp))
 ```
 
 To list available checkpoint indices you may use:

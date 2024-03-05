@@ -2,17 +2,24 @@ using Pkg
 Pkg.activate(joinpath(homedir(), ".julia", "dev", "IMUDevNNTrainingLib", "examples"))
 using Revise
 using IMUDevNNTrainingLib
-using Flux
+using Lux
+using Optimisers
 using ParameterSchedulers
 using ParameterSchedulers: Stateful
+using Random
 
 const NNTrLib = IMUDevNNTrainingLib
+
+rng = Random.default_rng()
+Random.seed!(rng, 0)
 
 # Let's define a simple NN model
 model = Dense(10, 1)
 
+θ, Ω = Lux.setup(rng, model)
+
 pd = PlateauDetector(; scheduler=Stateful(Exp(1e-3, 0.1)))
-optimizer_state = Flux.setup(Adam(learning_rate(pd)), model)
+optimizer_state = Optimisers.setup(Adam(learning_rate(pd)), θ)
 
 # let's define a sequence of artificial losses, which happen to increase
 # (so that we will see the learning rate decrease)
@@ -23,7 +30,7 @@ for loss in losses
     needs_update = NNTrLib.step!(pd, loss)
     if needs_update
         @info "Updating learning rate from $(learning_rate(pd))."
-        Flux.adjust!(optimizer_state, pd)
+        Optimisers.adjust!(optimizer_state, pd)
         @info "Updated to $(learning_rate(pd)).\n\t----------------"
     end
 end
@@ -37,7 +44,7 @@ end
 display_current_learning_rates(pd, optimizer_state)
 
 # let's reset the learning rate
-Flux.adjust!(optimizer_state, pd, 1)
+Optimisers.adjust!(optimizer_state, pd, 1)
 # and let's see what it is now
 display_current_learning_rates(pd, optimizer_state)
 
@@ -46,7 +53,7 @@ for loss in losses
     needs_update = NNTrLib.step!(pd, loss)
     if needs_update
         @info "Updating learning rate from $(learning_rate(pd))."
-        Flux.adjust!(optimizer_state, pd)
+        Optimisers.adjust!(optimizer_state, pd)
         @info "Updated to $(learning_rate(pd)).\n\t----------------"
     end
 end
@@ -55,7 +62,7 @@ end
 display_current_learning_rates(pd, optimizer_state)
 
 # let's change the entire scheduler
-Flux.adjust!(optimizer_state, pd, Stateful(CosAnneal(1e-3, 1e-4, 5)))
+Optimisers.adjust!(optimizer_state, pd, Stateful(CosAnneal(1e-3, 1e-4, 5)))
 # and let's see what it is now
 display_current_learning_rates(pd, optimizer_state)
 
@@ -64,7 +71,7 @@ for loss in losses
     needs_update = NNTrLib.step!(pd, loss)
     if needs_update
         @info "Updating learning rate from $(learning_rate(pd))."
-        Flux.adjust!(optimizer_state, pd)
+        Optimisers.adjust!(optimizer_state, pd)
         @info "Updated to $(learning_rate(pd)).\n\t----------------"
     end
 end

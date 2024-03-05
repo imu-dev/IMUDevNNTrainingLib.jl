@@ -6,6 +6,17 @@
 
 A struct to manage checkpoints during training of neural networks.
 
+!!! note
+    The checkpointer is intended to save:
+    
+    - the model parameters
+    - the model state
+    - the optimizer state
+    - the training log
+    - other objects passed by the user
+
+    Note in particular that it is not recommended to save the `model` itself.
+
 $(TYPEDFIELDS)
 
 # Examples
@@ -60,6 +71,17 @@ Return the path to the checkpoint file for the given epoch.
 """
 function path_to_checkpoint(cp::Checkpointer, epoch::Int)
     return joinpath(cp.dir, "checkpoint=$epoch.jld2")
+end
+
+"""
+    path_to_last_checkpoint(cp::Checkpointer)
+
+Return the path to the most recent checkpoint file for the given epoch.
+"""
+function path_to_last_checkpoint(cp::Checkpointer)
+    i = index_of_last_checkpoint(cp)
+    isnothing(i) && return nothing
+    return path_to_checkpoint(cp, i)
 end
 
 """
@@ -138,34 +160,33 @@ function ith_checkpoint_next_epoch(cp::Checkpointer, i)
 end
 
 """
-    start!(cp::Checkpointer, model;
-           move_to_device=Flux.cpu,
-           fallback_optimizer=m -> Flux.setup(Flux.Adam(1e-3), m),
-           continue_from=cp.continue_from)
+    start(cp::Checkpointer;
+          move_to_device=Lux.cpu_device(),
+          continue_from=cp.continue_from)
 
 Start the checkpointing process. `continue_from` can be one of the following:
 - `:none`, `:start`, `:restart`, `:nothing`: for starting from scratch;
 - `:last`, `:latest`, `:recent`: for continuing from the last checkpoint;
 - `Int`: for continuing from a specific checkpoint index.
 
-The `move_to_device` function is used to move the model to the desired device
-(e.g. CPU or GPU). The `fallback_optimizer` function is used to setup the
-optimizer if the checkpoint does not exist. The function returns the model,
-the optimizer state, the training log, the index of the subsequent training
-epoch and the dictionary of other objects that were saved in the checkpoint.
+The `move_to_device` function is used to move the model parameters, model states
+and optimizer's state to the desired device (e.g. CPU or GPU). The function
+returns a `NamedTuple` with the checkpointed data (or `nothing` if no checkpoint
+is found) and an index of the subsequent training epoch.
 """
-function start!(cp::Checkpointer, model;
-                move_to_device=Flux.cpu,
-                fallback_optimizer=m -> Flux.setup(Flux.Adam(1e-3), m),
-                continue_from=cp.continue_from)
+function start(cp::Checkpointer;
+               move_to_device=Lux.cpu_device(),
+               continue_from=cp.continue_from)
     chkp, start_epoch = if continue_from in [:none, :start, :restart, :nothing]
         @info "Starting new checkpointing"
         nothing, 1
     elseif continue_from in [:last, :latest, :recent]
-        @info "Continuing from the last checkpoint"
+        @info "Attempting to continue from the last checkpoint"
         c, i = isdir(cp.dir) ? last_checkpoint_next_epoch(cp) : (nothing, 1)
         if i == 1
             @info "No checkpoint found. Starting from scratch."
+        else
+            @info "Starting from checkpoint with index $(i-1)."
         end
         c, i
     elseif continue_from isa Int
@@ -185,27 +206,33 @@ function start!(cp::Checkpointer, model;
     end
 
     if isnothing(chkp)
-        m = move_to_device(model)
-        return m, move_to_device(fallback_optimizer(m)), [], start_epoch, Dict()
+        return nothing, start_epoch
     end
-    model, opt_state, log, other = load!(model, chkp)
-    return move_to_device(model), move_to_device(opt_state), log, start_epoch, other
+    return load_checkpoint(chkp; move_to_device), start_epoch
 end
 
 """
-    load!(model, checkpoint_path)
+    load_checkpoint(path::String; move_to_device=Lux.cpu_device())
 
-Load the model, the optimizer statem, the training log and the other variables
-from the checkpoint file.
+Load the model parameters, model states, optimizer state, training log and the
+remaining variables from the checkpoint file. `move_to_device` is used to move
+the:
+- model parameters
+- model states and
+- optimizer's state
+to the desired device (e.g. CPU or GPU).
 """
-function load!(model, checkpoint_path)
-    model_state = JLD2.load(checkpoint_path, "model_state")
-    Flux.loadmodel!(model, model_state)
-
-    opt_state = JLD2.load(checkpoint_path, "opt_state")
-    log = JLD2.load(checkpoint_path, "log")
-    other = JLD2.load(checkpoint_path, "other")
-    return model, opt_state, log, other
+function load_checkpoint(path::String; move_to_device=Lux.cpu_device())
+    ps = JLD2.load(path, "model_parameters")
+    st = JLD2.load(path, "model_states")
+    opt_state = JLD2.load(path, "opt_state")
+    log = JLD2.load(path, "log")
+    other = JLD2.load(path, "other")
+    return (; parameters=move_to_device(ps),
+            states=move_to_device(st),
+            opt_state=move_to_device(opt_state),
+            log,
+            other)
 end
 
 """
@@ -214,15 +241,22 @@ end
 Save the model, the optimizer state and the training log to a checkpoint file if
 the given epoch is a multiple of `cp.save_every`. Otherwise, do nothing.
 """
-function checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, kwargs...)
+function checkpoint(cp::Checkpointer, epoch::Int;
+                    parameters, states, opt_state, log, kwargs...)
     if epoch % cp.save_every != 0
         return nothing
     end
     mkpath(cp.dir)
     @info "Checkpointing epoch $epoch..."
-    jldsave(path_to_checkpoint(cp, epoch);
-            model_state=Flux.state(Flux.cpu(model)),
-            opt_state=Flux.cpu(opt_state),
+
+    # The data must always be moved to a cpu for saving
+    dev = Lux.cpu_device()
+
+    jldsave(path_to_checkpoint(cp, epoch),
+            true;
+            model_parameters=dev(parameters),
+            model_states=dev(states),
+            opt_state=dev(opt_state),
             log,
             other=Dict(kwargs))
     @info "Done"

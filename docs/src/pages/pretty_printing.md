@@ -1,6 +1,6 @@
 # Pretty printing
 
-`IMUDevNNTrainingLib` implements a handful of useful pretty printing features. To accompany them there are a couple of routines that extract dimension/size information from the [`Flux.DataLoader`](https://fluxml.ai/Flux.jl/stable/data/mlutils/#DataLoader) holding data of the type [`TemporalData`](https://imu-dev.github.io/IMUDevNNLib.jl/dev/pages/temporal_data/). These are:
+`IMUDevNNTrainingLib` implements a handful of useful pretty printing features. To accompany them there are a couple of routines that extract dimension/size information from the [`MLUtils.DataLoader`](https://juliaml.github.io/MLUtils.jl/stable/api/#MLUtils.DataLoader) holding data of the type [`TemporalData`](https://imu-dev.github.io/IMUDevNNLib.jl/dev/pages/temporal_data/). These are:
 
 ```@docs
 IMUDevNNTrainingLib.IMUDevNNLib.num_samples

@@ -76,17 +76,17 @@ function step!(pd::PlateauDetector, loss::Real)
 end
 
 """
-    Flux.Optimisers.adjust!(o, pd::PlateauDetector)
+    Optimisers.adjust!(opt_state, pd::PlateauDetector)
 
 Update the learning rate of the optimizer `o` according to the schedule defined
 by the plateau detector `pd`.
 
-    Flux.Optimisers.adjust!(o, pd::PlateauDetector, i::Int)
+    Optimisers.adjust!(opt_state, pd::PlateauDetector, i::Int)
 
 Reset the learning rate by moving to state `i` along the schedule defined by
 `pd.scheduler`.
 
-    Flux.Optimisers.adjust!(o, pd::PlateauDetector, s::ParameterSchedulers.Stateful)
+    Optimisers.adjust!(opt_state, pd::PlateauDetector, s::ParameterSchedulers.Stateful)
 
 Reset the learning rate by changing the scheduler to `s` and moving to the state
 defined by it.
@@ -96,21 +96,21 @@ defined by it.
     want to manually restart the learning rate schedule (for instance, after
     loading a checkpoint and restarting training).
 """
-function Flux.Optimisers.adjust!(o, pd::PlateauDetector)
+function Optimisers.adjust!(opt_state, pd::PlateauDetector)
     old_lr = ParameterSchedulers.next!(pd.scheduler)
     lr = learning_rate(pd)
     if lr == old_lr
         return nothing
     end
-    return Flux.Optimisers.adjust!(o, lr)
+    return Optimisers.adjust!(opt_state, lr)
 end
 
-function Flux.Optimisers.adjust!(o, pd::PlateauDetector, i::Int)
+function Optimisers.adjust!(opt_state, pd::PlateauDetector, i::Int)
     pd.scheduler.state = i
-    return Flux.Optimisers.adjust!(o, learning_rate(pd))
+    return Optimisers.adjust!(opt_state, learning_rate(pd))
 end
 
-function Flux.Optimisers.adjust!(o, pd::PlateauDetector, s::ParameterSchedulers.Stateful)
+function Optimisers.adjust!(opt_state, pd::PlateauDetector, s::ParameterSchedulers.Stateful)
     pd.scheduler = s
-    return Flux.Optimisers.adjust!(o, learning_rate(pd))
+    return Optimisers.adjust!(opt_state, learning_rate(pd))
 end

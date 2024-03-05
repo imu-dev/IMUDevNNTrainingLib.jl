@@ -21,21 +21,21 @@ It is often recommended to reduce the learning rate when the tracked loss metric
 ```@docs
 PlateauDetector
 IMUDevNNTrainingLib.step!
-IMUDevNNTrainingLib.Flux.Optimisers.adjust!
+IMUDevNNTrainingLib.Optimisers.adjust!
 ```
 
 !!! warning
     To avoid name clashes `step!` is not exported by `IMUDevNNTrainingLib`. It is recommended to use it as follows:
     ```julia
     using IMUDevNNTrainingLib
-    using Flux
+    using Optimisers
     const NNTrLib = IMUDevNNTrainingLib
     pd = PlateauDetector(; η=1e-4)
     optimizer_state = ...
     loss = ...
     needs_update = NNTrLib.step!(pd, loss)
     if needs_update
-        Flux.adjust!(optimizer_state, pd)
+        Optimisers.adjust!(optimizer_state, pd)
     end
     ```
 
@@ -45,6 +45,6 @@ Additionally the following utility function is implemented:
 learning_rate
 ```
 
-An overloaded `Flux.adjust!` makes it possible to change the previously set schedules and adjust the state of the optimizer accordingly.
+An overloaded `Optimisers.adjust!` makes it possible to change the previously set schedules and adjust the state of the optimizer accordingly.
 
 See also the [examples/plateau_detector.jl](https://github.com/imu-dev/IMUDevNNTrainingLib.jl/blob/main/examples/plateau_detector.jl) file for more details on how to use a `PlateauDetector`.
