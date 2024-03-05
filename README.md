@@ -3,7 +3,7 @@
 [![][docs-dev-img]][docs-dev-url]
 [![Build Status](https://github.com/imu-dev/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/imu-dev/IMUDevNNTrainingLib.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-An opinionated toolbox for training Neural Networks with [Flux](https://github.com/FluxML/Flux.jl).
+An opinionated toolbox for training Neural Networks with [Lux](https://github.com/LuxDL/Lux.jl).
 
 A frequently repeated patterns employed during training of neural nets are abstracted away and conveniently packaged into various structs and functions, at the expense of making some choices for the user and depending on packages that aren't exactly slim.
 

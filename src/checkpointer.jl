@@ -23,17 +23,25 @@ $(TYPEDFIELDS)
 
 ## Checkpointing during training
 ```julia
+using Lux, Optimisers
+using Random
+
+rng = Random.default_rng()
+Random.seed!(rng, 0)
+
 # a function that updates the training log
 model = ...
 update_log!(...) = ...
 ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"),
                   continue_from=:last,
                   save_every=5)
-model, opt_state, log, start_epoch, other = start!(ch, model)
+chkp_data, start_epoch = start(ch)
+parameters, states, opt_state, log, other = chkp_data
+
 for epoch in start_epoch:100
-    Flux.train!(model, data, opt_state)
+    train!(parameters, states, model, data, opt_state)
     update_log!(log, model, data, epoch)
-    checkpoint(ch, epoch; model, opt_state, log)
+    checkpoint(ch, epoch; parameters, states, opt_state, log, other)
 end
 ```
 
@@ -41,8 +49,8 @@ end
 ```julia
 model = Chain(...)
 ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"))
-load!(model, path_to_checkpoint(ch, index_of_last_checkpoint(ch)))
-test(model, data)
+chkp_data = load_checkpoint(model, path_to_last_checkpoint(ch))
+test(model, chkp_data, data)
 ```
 
 """
@@ -50,7 +58,7 @@ test(model, data)
     """Root directory where the checkpoints will be saved to"""
     dir::String = "."
     """
-    A default behaviour for resuming checkpointing. See [`start!`](@ref) for
+    A default behaviour for resuming checkpointing. See [`start`](@ref) for
     details.
     """
     continue_from::Union{Int,Symbol} = :last
