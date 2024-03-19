@@ -1,58 +1,56 @@
 """
-    Checkpointer(;
-        dir::String = ".",
-        continue_from::Union{Int,Symbol} = :last,
-        save_every::Int = 1)
+    Checkpointer(; dir::String = ".",
+                 continue_from::Union{Int,Symbol} = :last,
+                 save_every::Int = 1)
 
 A struct to manage checkpoints during training of neural networks.
 
 !!! note
     The checkpointer is intended to save:
     
-    - the model parameters
-    - the model state
-    - the optimizer state
-    - the training log
+    - model parameters
+    - model state
+    - optimizer state
+    - training log
     - other objects passed by the user
 
     Note in particular that it is not recommended to save the `model` itself.
 
 $(TYPEDFIELDS)
 
-# Examples
+!!! Tip "Examples"
 
-## Checkpointing during training
-```julia
-using Lux, Optimisers
-using Random
+    ## Checkpointing during training
+    ```julia
+    using Lux, Optimisers
+    using Random
 
-rng = Random.default_rng()
-Random.seed!(rng, 0)
+    rng = Random.default_rng()
+    Random.seed!(rng, 0)
 
-# a function that updates the training log
-model = ...
-update_log!(...) = ...
-ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"),
-                  continue_from=:last,
-                  save_every=5)
-chkp_data, start_epoch = start(ch)
-parameters, states, opt_state, log, other = chkp_data
+    # a function that updates the training log
+    model = ...
+    update_log!(...) = ...
+    ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"),
+                      continue_from=:last,
+                      save_every=5)
+    chkp_data, start_epoch = start(ch)
+    parameters, states, opt_state, log, other = chkp_data
 
-for epoch in start_epoch:100
-    train!(parameters, states, model, data, opt_state)
-    update_log!(log, model, data, epoch)
-    checkpoint(ch, epoch; parameters, states, opt_state, log, other)
-end
-```
+    for epoch in start_epoch:100
+        train!(parameters, states, model, data, opt_state)
+        update_log!(log, model, data, epoch)
+        checkpoint(ch, epoch; parameters, states, opt_state, log, other)
+    end
+    ```
 
-## Loading checkpoint for testing
-```julia
-model = Chain(...)
-ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"))
-chkp_data = load_checkpoint(model, path_to_last_checkpoint(ch))
-test(model, chkp_data, data)
-```
-
+    ## Loading checkpoint for testing
+    ```julia
+    model = Chain(...)
+    ch = Checkpointer(dir=joinpath(homedir(), "checkpoints"))
+    chkp_data = load_checkpoint(model, path_to_last_checkpoint(ch))
+    test(model, chkp_data, data)
+    ```
 """
 @kwdef struct Checkpointer
     """Root directory where the checkpoints will be saved to"""
@@ -260,8 +258,7 @@ function checkpoint(cp::Checkpointer, epoch::Int;
     # The data must always be moved to a cpu for saving
     dev = Lux.cpu_device()
 
-    jldsave(path_to_checkpoint(cp, epoch),
-            true;
+    jldsave(path_to_checkpoint(cp, epoch);
             model_parameters=dev(parameters),
             model_states=dev(states),
             opt_state=dev(opt_state),

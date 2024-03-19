@@ -15,15 +15,15 @@ function summary_panel(text; title="Training")
 end
 
 """
-    start_info(loader::DataLoader)
+    start_info(layout::SingleArrayLayout, loader::DataLoader)
 
 Print basic information about the `loader` and the data it holds.
 
 !!! tip
     This method is intended to be called at the start of training.
 """
-function start_info(loader::DataLoader)
-    info = basic_info_as_string(loader)
+function start_info(layout::SingleArrayLayout, loader::DataLoader)
+    info = basic_info_as_string(layout, loader)
 
     p = Panel(info_panel("STARTING TRAINING"),
               info_panel(info); fit=true)

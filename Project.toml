@@ -1,7 +1,7 @@
 name = "IMUDevNNTrainingLib"
 uuid = "f8493c61-e13b-4f15-934e-c0b2dbef8231"
 authors = ["Marcin Mider <marcin.mider@gmail.com> and contributors"]
-version = "0.6.1"
+version = "0.6.2"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -19,9 +19,8 @@ Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 [compat]
 DocStringExtensions = "0.9"
 Humanize = "1"
-IMUDevNNLib = "0.4"
+IMUDevNNLib = "0.5"
 JLD2 = "0.4"
-Lux = "0.5"
 MLUtils = "0.4"
 Optimisers = "0.3"
 ParameterSchedulers = "0.4"

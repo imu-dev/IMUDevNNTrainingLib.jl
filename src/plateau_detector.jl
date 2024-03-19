@@ -11,39 +11,50 @@ rate when the loss has stopped improving for a number of ticks.
 
 $(TYPEDFIELDS)
 """
-@kwdef mutable struct PlateauDetector
+mutable struct PlateauDetector{T}
     """
     The number of consecutive ticks with no improvement before advancing the
     learning rate along the scheduler.
     """
-    patience::Int = 10
+    patience::Int
 
     """
     **Internal only.** The last tick number on which the learning rate was
     adjusted.
     """
-    last_tick::Int = 0
+    last_tick::Int
 
     """
     **Internal only.** The best loss found so far.
     """
-    best_loss::Float64 = Inf
+    best_loss::Float64
 
     """
     **Internal only.** The tick number of the best loss found so far.
     """
-    best_tick::Int = 0
+    best_tick::Int
 
     """
     The minimum learning rate. If the learning rate is reduced to a value
     smaller than this, it will be clipped at this value.
     """
-    ϵ::Float64 = 1e-8
+    ϵ::T
 
     """
     The schedule along which the learning rate will be adjusted.
     """
-    scheduler::ParameterSchedulers.Stateful = ParameterSchedulers.Stateful(Exp(1e-3, 0.7))
+    scheduler::ParameterSchedulers.Stateful
+end
+
+function PlateauDetector(; patience::Int=10,
+                         ϵ::Float64=1e-8,
+                         scheduler::ParameterSchedulers.Stateful=ParameterSchedulers.Stateful(Exp(1e-3,
+                                                                                                  0.7)))
+    T = typeof(currentvalue(scheduler))
+    last_tick = 0
+    best_loss = T(Inf)
+    best_tick::Int = 0
+    return PlateauDetector{T}(patience, last_tick, best_loss, best_tick, ϵ, scheduler)
 end
 
 """
@@ -51,7 +62,7 @@ end
 
 Return the current learning rate of the plateau detector `pd`.
 """
-learning_rate(pd::PlateauDetector) = max(pd.ϵ, pd.scheduler.schedule(pd.scheduler.state))
+learning_rate(pd::PlateauDetector) = max(pd.ϵ, currentvalue(pd.scheduler))
 
 """
     step!(pd::PlateauDetector, loss::Real)

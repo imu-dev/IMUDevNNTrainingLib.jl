@@ -47,7 +47,7 @@ For testing it is often enough to call `load_checkpoint` directly, instead of tr
 load_checkpoint
 ```
 
-To pick the appropriate checkpoint one can make use of the following helper functions:
+To pick the appropriate checkpoint one can pick from the following helper functions:
 
 ```@docs
 path_to_checkpoint
