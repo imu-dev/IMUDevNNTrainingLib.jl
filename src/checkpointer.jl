@@ -8,9 +8,7 @@ A struct to manage checkpoints during training of neural networks.
 !!! note
     The checkpointer is intended to save:
     
-    - model parameters
-    - model state
-    - optimizer state
+    - training state (which includes: model parameters, model state & optimizer state)
     - training log
     - other objects passed by the user
 
@@ -35,12 +33,12 @@ $(TYPEDFIELDS)
                       continue_from=:last,
                       save_every=5)
     chkp_data, start_epoch = start(ch)
-    parameters, states, opt_state, log, other = chkp_data
+    state, log, other = chkp_data
 
     for epoch in start_epoch:100
-        train!(parameters, states, model, data, opt_state)
+        train!(state, model, data)
         update_log!(log, model, data, epoch)
-        checkpoint(ch, epoch; parameters, states, opt_state, log, other)
+        checkpoint(ch, epoch; state, log, other)
     end
     ```
 
@@ -220,35 +218,34 @@ end
 """
     load_checkpoint(path::String; move_to_device=Lux.cpu_device())
 
-Load the model parameters, model states, optimizer state, training log and the
-remaining variables from the checkpoint file. `move_to_device` is used to move
-the:
+Load the training state, training log and the remaining variables from the
+checkpoint file. `move_to_device` is used to move the:
 - model parameters
 - model states and
 - optimizer's state
 to the desired device (e.g. CPU or GPU).
 """
 function load_checkpoint(path::String; move_to_device=Lux.cpu_device())
-    ps = JLD2.load(path, "model_parameters")
-    st = JLD2.load(path, "model_states")
-    opt_state = JLD2.load(path, "opt_state")
+    state = JLD2.load(path, "state")
+    st = @set state.parameters = move_to_device(state.parameters)
+    st = @set st.states = move_to_device(st.states)
+    st = @set st.optimizer_state = move_to_device(st.optimizer_state)
+
     log = JLD2.load(path, "log")
     other = JLD2.load(path, "other")
-    return (; parameters=move_to_device(ps),
-            states=move_to_device(st),
-            opt_state=move_to_device(opt_state),
+    return (; state=st,
             log,
             other)
 end
 
 """
-    checkpoint(cp::Checkpointer, epoch::Int; model, opt_state, log, kwargs...)
+    checkpoint(cp::Checkpointer, epoch::Int; state, log, kwargs...)
 
-Save the model, the optimizer state and the training log to a checkpoint file if
+Save the training state and the training log to a checkpoint file if
 the given epoch is a multiple of `cp.save_every`. Otherwise, do nothing.
 """
 function checkpoint(cp::Checkpointer, epoch::Int;
-                    parameters, states, opt_state, log, kwargs...)
+                    state, log, kwargs...)
     if epoch % cp.save_every != 0
         return nothing
     end
@@ -258,10 +255,12 @@ function checkpoint(cp::Checkpointer, epoch::Int;
     # The data must always be moved to a cpu for saving
     dev = Lux.cpu_device()
 
+    st = @set state.parameters = dev(state.parameters)
+    st = @set st.states = dev(st.states)
+    st = @set st.optimizer_state = dev(st.optimizer_state)
+
     jldsave(path_to_checkpoint(cp, epoch);
-            model_parameters=dev(parameters),
-            model_states=dev(states),
-            opt_state=dev(opt_state),
+            state=st,
             log,
             other=Dict(kwargs))
     @info "Done"

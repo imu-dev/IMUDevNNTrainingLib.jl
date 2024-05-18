@@ -2,6 +2,7 @@ module IMUDevNNTrainingLib
 
 using Reexport
 
+using Accessors
 using Dates
 using DocStringExtensions
 using Humanize: digitsep

@@ -5,6 +5,11 @@
 A plateau detector for schedulers of learning rate. It will adjust the learning
 rate when the loss has stopped improving for a number of ticks.
 
+    (pd::PlateauDetector)(loss::Real)
+
+Advance the plateau detector by one tick. Update `pd` internals with information
+about the current loss. Return `true` if the learning rate should be updated.
+
 !!! tip
     Most commonly one tick is equal either to one epoch or one batch, but
     the user is free to define it as they see fit.
@@ -64,13 +69,7 @@ Return the current learning rate of the plateau detector `pd`.
 """
 learning_rate(pd::PlateauDetector) = max(pd.ϵ, currentvalue(pd.scheduler))
 
-"""
-    step!(pd::PlateauDetector, loss::Real)
-
-Advance the plateau detector by one tick. Update `pd` internals with information
-about the current loss. Return `true` if the learning rate should be updated.
-"""
-function step!(pd::PlateauDetector, loss::Real)
+function (pd::PlateauDetector)(loss::Real)
     current_tick = pd.last_tick + 1
     update_learning_rate = if loss < pd.best_loss
         pd.best_loss = loss
